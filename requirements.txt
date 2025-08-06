@@ -5,6 +5,8 @@ PyPDF2
 pandas
 numpy
 joblib
+docx2txt
+
 
 
 
