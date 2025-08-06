@@ -34,11 +34,24 @@ def extract_email(text):
     return match.group(0) if match else "Not found"
 
 def extract_name(text):
+    # Try pattern: "Name: John Doe"
+    name_match = re.search(r'(?:name\s*[:\-]\s*)([A-Z][a-z]+(?:\s[A-Z][a-z]+)+)', text, re.IGNORECASE)
+    if name_match:
+        return name_match.group(1).strip()
+
+    # Fallback: Use first 10 lines to search for 2–3 capitalized words or fully uppercase names
     lines = text.strip().split('\n')
-    for line in lines:
-        if re.search(r'\bname\b', line.lower()):
-            return line.split(':')[-1].strip().title()
-    return lines[0].strip().title() if lines else "Not found"
+    for line in lines[:10]:
+        line = line.strip()
+        # Match title case names
+        if re.match(r'^([A-Z][a-z]+\s){1,2}[A-Z][a-z]+$', line):
+            return line
+        # Match full uppercase names (e.g., RAVI KUMAR)
+        if re.match(r'^([A-Z]+\s){1,2}[A-Z]+$', line):
+            return line.title()  # Convert to Ravi Kumar
+
+    return "Not found"
+
 
 def extract_skills(text):
     skill_keywords = ['python', 'sql', 'excel', 'tableau', 'powerbi', 'oracle', 'pl/sql',
@@ -106,3 +119,4 @@ if uploaded_file:
         st.markdown(f"- {line.strip()}")
 
     st.success(f"🧑‍💼 **Predicted Job Role:** {job_role}")
+
