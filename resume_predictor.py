@@ -42,8 +42,12 @@ def extract_name(text):
 
 def extract_skills(text):
     keywords = [
-        "python", "java", "c++", "sql", "excel", "power bi", "tableau", 
+         
+        "recruitment", "talent acquisition", "human resources", "onboarding", "payroll"
+        "excel", "power bi", "tableau", "data analysis","python",
+        "tsql", "stored procedure", "ssis","sql","mysql",
         "communication", "leadership", "teamwork", "machine learning",
+        "react", "redux", "jsx", "javascript"
         "deep learning", "nlp", "keras", "pytorch", "tensorflow", 
         "pandas", "numpy", "data analysis", "react", "angular", 
         "flask", "django"
@@ -89,5 +93,6 @@ if uploaded_file is not None:
     st.subheader(" Predicted Job Role")
     predicted_role = predict_job_role(resume_text)
     st.success(f" The predicted job role is: **{predicted_role}**")
+
 
 
