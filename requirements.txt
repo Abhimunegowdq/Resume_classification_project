@@ -9,4 +9,5 @@ nltk
 email-validator
 regex
 docx2txt
+PyMuPDF
 
