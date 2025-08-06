@@ -6,9 +6,16 @@ import joblib
 import spacy
 import numpy as np
 import pandas as pd
+import subprocess
+import sys
 
-# Load NLP model
-nlp = spacy.load("en_core_web_sm")
+# 🛠 Ensure spaCy model is available
+try:
+    nlp = spacy.load("en_core_web_sm")
+except OSError:
+    subprocess.run([sys.executable, "-m", "spacy", "download", "en_core_web_sm"])
+    nlp = spacy.load("en_core_web_sm")
+
 
 # Load ML tools
 model = joblib.load("decision_tree_resume_model.pkl")
@@ -87,7 +94,7 @@ if uploaded_file:
 
     name = extract_name(resume_text)
     email = extract_email(resume_text)
-    phone = extract_phone(resume_text)
+    
     skills = extract_skills(resume_text)
     education = extract_education(resume_text)
     experience = extract_experience(resume_text)
@@ -96,7 +103,7 @@ if uploaded_file:
     st.subheader("📋 Extracted Information")
     st.markdown(f"👤 **Name:** {name}")
     st.markdown(f"📧 **Email:** {email}")
-    st.markdown(f"📱 **Phone:** {phone}")
+
     st.markdown(f"🛠️ **Skills:** {skills}")
     st.markdown(f"🎓 **Education:** {education}")
     st.markdown(f"💼 **Experience:** {experience}")
@@ -104,3 +111,4 @@ if uploaded_file:
     st.subheader("📊 Job Role Prediction")
     st.markdown(f"🔮 **Predicted Role:** `{predicted_role}`")
     st.markdown(f"✅ **Confidence:** `{confidence}%`")
+
