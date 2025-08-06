@@ -12,6 +12,16 @@ model = joblib.load("decision_tree_resume_model.pkl")
 vectorizer = joblib.load("tfidf_vectorizer.pkl")
 label_encoder = joblib.load("label_encoder.pkl")
 
+# Convert extracted text to vector
+features = vectorizer.transform([cleaned_text])  # or your processed resume text
+
+# Predict the category
+predicted_category = model.predict(features)[0]
+
+# Get human-readable label using label_encoder
+predicted_label = label_encoder.inverse_transform([predicted_category])[0]
+
+
 # Set Streamlit app title
 st.title("📄 Resume Job Role Predictor")
 st.markdown("---")
@@ -109,3 +119,4 @@ if uploaded_file:
 model = joblib.load("decision_tree_resume_model.pkl")
 vectorizer = joblib.load("tfidf_vectorizer.pkl")
 label_encoder = joblib.load("label_encoder.pkl")
+
