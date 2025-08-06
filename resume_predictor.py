@@ -3,6 +3,7 @@ import docx2txt
 import fitz  # PyMuPDF
 import re
 import joblib
+import pandas as pd
 import numpy as np
 
 # ---------------- Load Saved Model and Tools ----------------
@@ -16,8 +17,8 @@ def extract_text_from_docx(file):
     return docx2txt.process(file)
 
 def extract_text_from_pdf(file):
+    text = ""
     with fitz.open(stream=file.read(), filetype="pdf") as doc:
-        text = ""
         for page in doc:
             text += page.get_text()
     return text
@@ -27,13 +28,15 @@ def extract_email(text):
     return match.group(0) if match else "Not found"
 
 def extract_phone(text):
-    match = re.search(r'(\+91[\-\s]?)?[0]?[6789]\d{9}', text)
+    match = re.search(r'(\+?\d{1,3}[\s.-]?)?(\(?\d{3,5}\)?[\s.-]?)?\d{3,5}[\s.-]?\d{4}', text)
     return match.group(0) if match else "Not found"
 
 def extract_name(text):
     lines = text.strip().split('\n')
     for line in lines:
         clean_line = line.strip()
+        if clean_line.lower() in ["curriculum vitae", "resume"]:
+            continue  # Skip headers
         if len(clean_line.split()) <= 4 and clean_line.replace(" ", "").isalpha():
             return clean_line.title()
         if re.match(r"^[A-Z][a-z]+ [A-Z][a-z]+", clean_line):
@@ -41,9 +44,9 @@ def extract_name(text):
     return "Not found"
 
 def extract_skills(text):
-    keywords = [
-         
-        "recruitment", "talent acquisition", "human resources", "onboarding", "payroll"
+    skills = [
+        
+ "recruitment", "talent acquisition", "human resources", "onboarding", "payroll"
         "excel", "power bi", "tableau", "data analysis","python",
         "tsql", "stored procedure", "ssis","sql","mysql",
         "communication", "leadership", "teamwork", "machine learning",
@@ -52,47 +55,42 @@ def extract_skills(text):
         "pandas", "numpy", "data analysis", "react", "angular", 
         "flask", "django"
     ]
-    skills = [word for word in keywords if word.lower() in text.lower()]
-    return list(set(skills)) if skills else ["Not found"]
+    text = text.lower()
+    extracted = [skill for skill in skills if skill in text]
+    return ", ".join(extracted) if extracted else "Not found"
 
-def predict_job_role(text):
-    vectorized_text = vectorizer.transform([text])
-    prediction_encoded = model.predict(vectorized_text)[0]
-    prediction = label_encoder.inverse_transform([prediction_encoded])[0]
-    return prediction
+def predict_role(text):
+    tfidf_text = vectorizer.transform([text])
+    prediction = model.predict(tfidf_text)
+    job_role = label_encoder.inverse_transform(prediction)[0]
+    return job_role
 
-# ------------------ Streamlit Interface ---------------------
+# ------------------ Streamlit UI ------------------------
 
-st.title("📄 Resume Job Role Predictor")
+st.set_page_config(page_title="Resume Classifier", layout="centered")
+st.title("📄 Resume Classifier")
+st.write("Upload your resume (`.pdf` or `.docx`) and we'll classify the job role.")
 
-uploaded_file = st.file_uploader("Upload a resume file (.pdf or .docx)", type=["pdf", "docx"])
+uploaded_file = st.file_uploader("Upload Resume", type=["pdf", "docx"])
 
 if uploaded_file is not None:
-    file_type = uploaded_file.name.split('.')[-1].lower()
-
-    if file_type == "pdf":
-        resume_text = extract_text_from_pdf(uploaded_file)
-    elif file_type == "docx":
-        resume_text = extract_text_from_docx(uploaded_file)
+    # Extract text
+    if uploaded_file.name.endswith(".pdf"):
+        text = extract_text_from_pdf(uploaded_file)
     else:
-        st.error("Unsupported file format.")
-        st.stop()
+        text = extract_text_from_docx(uploaded_file)
 
-    # Display resume preview
-    with st.expander(" Resume Preview"):
-        st.write(resume_text)
+    # Extract details
+    name = extract_name(text)
+    email = extract_email(text)
+    phone = extract_phone(text)
+    skills = extract_skills(text)
+    predicted_role = predict_role(text)
 
-    # Extracted Information
-    st.subheader(" Extracted Information")
-    st.write(" **Name:**", extract_name(resume_text))
-    st.write(" **Email:**", extract_email(resume_text))
-    st.write(" **Phone:**", extract_phone(resume_text))
-    st.write("🛠 **Skills:**", ", ".join(extract_skills(resume_text)))
-
-    # Prediction
-    st.subheader(" Predicted Job Role")
-    predicted_role = predict_job_role(resume_text)
-    st.success(f" The predicted job role is: **{predicted_role}**")
-
-
-
+    # Display
+    st.subheader("📌 Extracted Information")
+    st.write(f"**👤 Name:** {name}")
+    st.write(f"**📧 Email:** {email}")
+    st.write(f"**📱 Phone:** {phone}")
+    st.write(f"**🛠️ Skills:** {skills}")
+    st.success(f"🎯 **Predicted Job Role:** {predicted_role}")
