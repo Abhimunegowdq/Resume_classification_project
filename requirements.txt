@@ -1,0 +1,10 @@
+streamlit
+scikit-learn
+pandas
+numpy
+pdfplumber
+python-docx
+joblib
+nltk
+email-validator
+regex
