@@ -7,8 +7,8 @@ import pandas as pd
 import numpy as np
 
 # ---------------- Load Saved Model and Tools ----------------
-model = joblib.load("model.pkl")
-vectorizer = joblib.load("vectorizer.pkl")
+model = joblib.load("decision_tree_resume_model.pkl")
+vectorizer = joblib.load("tfidf_vectorizer.pkl")
 label_encoder = joblib.load("label_encoder.pkl")
 
 # ------------------ Helper Functions ------------------------
@@ -93,3 +93,4 @@ if uploaded_file:
     st.subheader("📄 Resume Text")
     with st.expander("Click to view full resume text"):
         st.text_area("Resume Content", text, height=300)
+
