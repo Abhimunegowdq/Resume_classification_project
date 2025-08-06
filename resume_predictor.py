@@ -5,6 +5,11 @@ import re
 import joblib
 import pandas as pd
 import numpy as np
+import spacy
+from collections import Counter
+
+# Load spaCy English model
+nlp = spacy.load("en_core_web_sm")
 
 # ---------------- Load Saved Model and Tools ----------------
 model = joblib.load("decision_tree_resume_model.pkl")
@@ -36,28 +41,51 @@ def extract_name(text):
     for line in lines:
         clean_line = line.strip()
         if clean_line.lower() in ["curriculum vitae", "resume"]:
-            continue  # Skip headers
+            continue
         if len(clean_line.split()) <= 4 and clean_line.replace(" ", "").isalpha():
             return clean_line.title()
         if re.match(r"^[A-Z][a-z]+ [A-Z][a-z]+", clean_line):
             return clean_line.strip()
     return "Not found"
 
-def extract_skills(text):
-    skills = [
-        
- "recruitment", "talent acquisition", "human resources", "onboarding", "payroll"
-        "excel", "power bi", "tableau", "data analysis","python",
-        "tsql", "stored procedure", "ssis","sql","mysql",
-        "communication", "leadership", "teamwork", "machine learning",
-        "react", "redux", "jsx", "javascript"
-        "deep learning", "nlp", "keras", "pytorch", "tensorflow", 
-        "pandas", "numpy", "data analysis", "react", "angular", 
-        "flask", "django"
-    ]
-    text = text.lower()
-    extracted = [skill for skill in skills if skill in text]
-    return ", ".join(extracted) if extracted else "Not found"
+def extract_skills_dynamic(text):
+    doc = nlp(text)
+    # Extracting potential skills (noun chunks and proper nouns)
+    tokens = [token.text.lower() for token in doc if token.pos_ in ["NOUN", "PROPN"] and len(token.text) > 2]
+    # Get top 15 most frequent tokens
+    most_common = Counter(tokens).most_common(15)
+    skill_list = [word for word, freq in most_common]
+    return ", ".join(skill_list).title() if skill_list else "Not found"
+
+def extract_education(text):
+    education_keywords = ['education', 'qualifications', 'academic']
+    lines = text.lower().split('\n')
+    education_lines = []
+
+    for i, line in enumerate(lines):
+        if any(keyword in line for keyword in education_keywords):
+            for j in range(i + 1, min(i + 10, len(lines))):
+                if lines[j].strip() == "":
+                    break
+                education_lines.append(lines[j].strip())
+            break
+
+    return "\n".join(education_lines).strip().title() if education_lines else "Not found"
+
+def extract_experience(text):
+    experience_keywords = ['experience', 'employment', 'work history', 'professional summary']
+    lines = text.lower().split('\n')
+    experience_lines = []
+
+    for i, line in enumerate(lines):
+        if any(keyword in line for keyword in experience_keywords):
+            for j in range(i + 1, min(i + 15, len(lines))):
+                if lines[j].strip() == "":
+                    break
+                experience_lines.append(lines[j].strip())
+            break
+
+    return "\n".join(experience_lines).strip().title() if experience_lines else "Not found"
 
 def predict_role(text):
     tfidf_text = vectorizer.transform([text])
@@ -69,22 +97,23 @@ def predict_role(text):
 
 st.set_page_config(page_title="Resume Classifier", layout="centered")
 st.title("📄 Resume Classifier")
-st.write("Upload your resume (`.pdf` or `.docx`) and we'll classify the job role.")
+st.write("Upload your resume (`.pdf` or `.docx`) and we'll extract details and classify the job role.")
 
 uploaded_file = st.file_uploader("Upload Resume", type=["pdf", "docx"])
 
 if uploaded_file is not None:
-    # Extract text
     if uploaded_file.name.endswith(".pdf"):
         text = extract_text_from_pdf(uploaded_file)
     else:
         text = extract_text_from_docx(uploaded_file)
 
-    # Extract details
+    # Extracted Info
     name = extract_name(text)
     email = extract_email(text)
     phone = extract_phone(text)
-    skills = extract_skills(text)
+    skills = extract_skills_dynamic(text)
+    education = extract_education(text)
+    experience = extract_experience(text)
     predicted_role = predict_role(text)
 
     # Display
@@ -92,5 +121,8 @@ if uploaded_file is not None:
     st.write(f"**👤 Name:** {name}")
     st.write(f"**📧 Email:** {email}")
     st.write(f"**📱 Phone:** {phone}")
-    st.write(f"**🛠️ Skills:** {skills}")
+    st.write(f"**🎓 Education:**\n{education}")
+    st.write(f"**💼 Experience:**\n{experience}")
+    st.write(f"**🛠️ Skills (Extracted):** {skills}")
     st.success(f"🎯 **Predicted Job Role:** {predicted_role}")
+
