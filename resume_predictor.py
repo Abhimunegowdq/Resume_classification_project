@@ -34,23 +34,34 @@ def extract_email(text):
     return match.group(0) if match else "Not found"
 
 def extract_name(text):
-    # Try pattern: "Name: John Doe"
+    invalid_names = {'professional summary', 'curriculum vitae', 'resume', 'profile', 'about me'}
+
+    # Pattern: Name: John Doe
     name_match = re.search(r'(?:name\s*[:\-]\s*)([A-Z][a-z]+(?:\s[A-Z][a-z]+)+)', text, re.IGNORECASE)
     if name_match:
-        return name_match.group(1).strip()
+        name = name_match.group(1).strip()
+        if name.lower() not in invalid_names:
+            return name
 
-    # Fallback: Use first 10 lines to search for 2–3 capitalized words or fully uppercase names
+    # Fallback: scan first 10 lines
     lines = text.strip().split('\n')
     for line in lines[:10]:
-        line = line.strip()
-        # Match title case names
-        if re.match(r'^([A-Z][a-z]+\s){1,2}[A-Z][a-z]+$', line):
-            return line
-        # Match full uppercase names (e.g., RAVI KUMAR)
-        if re.match(r'^([A-Z]+\s){1,2}[A-Z]+$', line):
-            return line.title()  # Convert to Ravi Kumar
+        line_clean = line.strip()
+        line_lower = line_clean.lower()
+
+        if line_lower in invalid_names or len(line_clean.split()) > 5:
+            continue
+
+        # Title case names: John Doe / Jane Mary Smith
+        if re.match(r'^([A-Z][a-z]+\.?\s){1,3}[A-Z][a-z]+\.?$', line_clean):
+            return line_clean
+
+        # Uppercase names: JOHN DOE -> John Doe
+        if re.match(r'^([A-Z]{2,}\s?)+$', line_clean):
+            return line_clean.title()
 
     return "Not found"
+
 
 
 def extract_skills(text):
@@ -122,5 +133,6 @@ if uploaded_file:
         st.markdown(f"- {line.strip()}")
 
     st.success(f"🧑‍💼 **Predicted Job Role:** {job_role}")
+
 
 
