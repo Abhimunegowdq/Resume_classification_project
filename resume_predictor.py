@@ -1,104 +1,58 @@
 import streamlit as st
 import re
 import docx2txt
+import PyPDF2
 import joblib
-from PyPDF2 import PdfReader
-from sklearn.feature_extraction.text import TfidfVectorizer
 
-# Load trained model and vectorizers
-model = joblib.load("decision_tree_resume_model.pkl")
-vectorizer = joblib.load("tfidf_vectorizer.pkl")
+# --- Load your trained components ---
+model = joblib.load("decision_tree_model.pkl")
+vectorizer = joblib.load("vectorizer.pkl")
 label_encoder = joblib.load("label_encoder.pkl")
 
-# ----------------- Resume Parsing Functions ---------------- #
-
+# --- Helper functions ---
 def extract_text_from_pdf(file):
-    pdf = PdfReader(file)
+    reader = PyPDF2.PdfReader(file)
     text = ""
-    for page in pdf.pages:
-        text += page.extract_text() + "\n"
+    for page in reader.pages:
+        text += page.extract_text()
     return text
 
 def extract_text_from_docx(file):
     return docx2txt.process(file)
 
 def clean_text(text):
-    text = re.sub(r'\n+', ' ', text)
-    text = re.sub(r'\S+@\S+', '', text)  # remove emails
-    text = re.sub(r'http\S+', '', text)  # remove links
-    text = re.sub(r'[^a-zA-Z0-9\s]', '', text)
-    return text.lower()
-
-def extract_email(text):
-    match = re.search(r'\b[\w\.-]+@[\w\.-]+\.\w+\b', text)
-    return match.group(0) if match else "Not found"
+    text = text.lower()
+    text = re.sub(r'[^\w\s]', ' ', text)
+    text = re.sub(r'\d+', '', text)
+    return text
 
 def extract_name(text):
-    # Common invalid headers to skip
-    invalid_headers = {'professional summary', 'curriculum vitae', 'resume', 'profile', 'about me'}
-    
-    # Try: "Name: John Doe"
-    name_match = re.search(r'(?:name\s*[:\-]\s*)([A-Z][a-z]+(?:\s[A-Z][a-z]+)+)', text, re.IGNORECASE)
-    if name_match:
-        name = name_match.group(1).strip()
-        if name.lower() not in invalid_headers:
-            return name
+    match = re.search(r'\b[A-Z][a-z]+\s[A-Z][a-z]+\b', text)
+    return match.group() if match else "Not found"
 
-    # Try: first 10 lines for proper name format
-    lines = text.strip().split('\n')
-    for line in lines[:10]:
-        line_clean = line.strip()
-        line_lower = line_clean.lower()
-
-        if line_lower in invalid_headers or len(line_clean.split()) > 6:
-            continue
-
-        # Match: John Doe, John A. Smith, etc.
-        if re.match(r'^([A-Z][a-z]+\s){1,3}[A-Z][a-z]+\.?$', line_clean):
-            return line_clean
-
-        # Match all-uppercase: JOHN DOE → John Doe
-        if re.match(r'^([A-Z]{2,}\s?){2,3}$', line_clean):
-            return line_clean.title()
-
-    # Fallback: return first capitalized line with 2–3 titlecase words
-    for line in lines[:10]:
-        words = line.strip().split()
-        capitalized = [w for w in words if w.istitle()]
-        if 2 <= len(capitalized) <= 4:
-            return " ".join(capitalized)
-
-    # Last resort: return first line
-    return lines[0].strip().title()
-    
+def extract_email(text):
+    match = re.search(r'\b[\w.-]+@[\w.-]+\.\w+\b', text)
+    return match.group() if match else None
 
 def extract_skills(text):
-    skill_keywords = [
-        'python', 'java', 'c++', 'sql', 'javascript', 'html', 'css', 'react', 'node.js',
+    skill_keywords = ['python', 'java', 'c++', 'sql', 'javascript', 'html', 'css', 'react', 'node.js',
         'angular', 'c#', 'php', 'mysql', 'mongodb', 'oracle', 'pl/sql',
         'pandas', 'numpy', 'scikit-learn', 'tensorflow', 'keras', 'power bi', 'tableau',
-        'aws', 'azure', 'git', 'docker', 'jira', 'crm', 'erp', 'peoplesoft', 'excel'
-    ]
+        'aws', 'azure', 'git', 'docker', 'jira', 'crm', 'erp', 'peoplesoft', 'excel']
     text = text.lower()
-    found_skills = []
-    for skill in skill_keywords:
-        if re.search(r'\b' + re.escape(skill) + r'\b', text):
-            found_skills.append(skill)
-    return list(set(found_skills)) if found_skills else ["Not found"]        
-   
+    return list(set([skill for skill in skill_keywords if skill in text]))
+
 def extract_experience(text):
-    lines = text.split('\n')
-    exp_lines = [line for line in lines if 'experience' in line.lower()]
-    return exp_lines[:3] if exp_lines else ["Not found"]
+    lines = text.splitlines()
+    exp_lines = [line for line in lines if any(word in line.lower() for word in ["experience", "worked", "project", "intern"])]
+    return exp_lines[:3]
 
 def extract_education(text):
-    edu_keywords = ['education', 'b.tech', 'm.tech', 'bachelor', 'master', 'degree', 'mba', 'b.sc', 'mca', 'bca']
-    lines = text.split('\n')
-    edu_lines = [line for line in lines if any(keyword in line.lower() for keyword in edu_keywords)]
-    return edu_lines[:3] if edu_lines else ["Not found"]
+    lines = text.splitlines()
+    edu_lines = [line for line in lines if any(word in line.lower() for word in ["bachelor", "master", "university", "college", "school", "b.tech", "m.tech", "degree"])]
+    return edu_lines[:3]
 
-# ----------------- Streamlit App ---------------- #
-
+# --- Streamlit UI ---
 st.set_page_config(page_title="Resume Job Role Predictor", layout="centered")
 st.title("📄 Resume Job Role Predictor")
 st.write("Upload a resume file (.pdf or .docx) to extract details and predict the job role.")
@@ -106,46 +60,45 @@ st.write("Upload a resume file (.pdf or .docx) to extract details and predict th
 uploaded_file = st.file_uploader("Upload Resume", type=["pdf", "docx"])
 
 if uploaded_file:
-    if uploaded_file.name.endswith(".pdf"):
-        raw_text = extract_text_from_pdf(uploaded_file)
-    else:
-        raw_text = extract_text_from_docx(uploaded_file)
+    # Step 1: Extract Text
+    raw_text = extract_text_from_pdf(uploaded_file) if uploaded_file.name.endswith(".pdf") else extract_text_from_docx(uploaded_file)
 
+    # Step 2: Extract Details
     name = extract_name(raw_text)
     email = extract_email(raw_text)
     skills = extract_skills(raw_text)
     experience = extract_experience(raw_text)
     education = extract_education(raw_text)
 
+    # Step 3: Predict Job Role
     cleaned = clean_text(raw_text)
     vector = vectorizer.transform([cleaned])
     pred_label = model.predict(vector)[0]
     job_role = label_encoder.inverse_transform([pred_label])[0]
 
-    # ----------------- Display Output ---------------- #
-    st.markdown(f" **Name:** {name}")
-    st.markdown(" **Skills:**")
+    # Step 4: Show Output
+    st.markdown(f"**👤 Name:** {name}")
+    st.markdown("**🛠 Skills:**")
     if skills:
         st.markdown(f"- {', '.join(skills[:4])}")
         st.markdown(f"- {', '.join(skills[4:8])}" if len(skills) > 4 else "")
     else:
         st.write("Not found")
 
-    st.markdown(" **Experience:**")
+    st.markdown("**💼 Experience:**")
     for line in experience:
         st.markdown(f"- {line.strip()}")
 
-    st.markdown(" **Education:**")
+    st.markdown("**🎓 Education:**")
     for line in education:
         st.markdown(f"- {line.strip()}")
 
-    st.success(f" **Predicted Job Role:** {job_role}")
+    st.success(f"**🧑‍💼 Predicted Job Role:** {job_role}")
 
-
-
-# 👇 Add this block here
-resume_output = f"""
+    # Step 5: Download Option
+    resume_output = f"""
 👤 Name: {name}
+
 
 
 🛠 Skills:
@@ -160,21 +113,18 @@ resume_output = f"""
 🧑‍💼 Predicted Job Role: {job_role}
 """
 
-st.download_button(
-    label="📥 Download Resume Analysis",
-    data=resume_output,
-    file_name="resume_analysis.txt",
-    mime="text/plain"
-)
+    st.download_button(
+        label="📥 Download Resume Analysis",
+        data=resume_output,
+        file_name="resume_analysis.txt",
+        mime="text/plain"
+    )
 
 
 
 
 
-
-
-
-
+ 
 
 
 
