@@ -4,9 +4,9 @@ import pickle
 from sklearn.feature_extraction.text import TfidfVectorizer
 
 # Load models
-model = pickle.load(open("decision_tree_resume_model.pkl", "rb"))
-vectorizer = pickle.load(open("tfidf_vectorizer.pkl", "rb"))
-label_encoder = pickle.load(open("label_encoder.pkl", "rb"))
+model = joblib.load("decision_tree_resume_model.pkl")
+vectorizer = joblib.load("tfidf_vectorizer.pkl")
+label_encoder = joblib.load("label_encoder.pkl")
 
 # Text extraction functions
 def extract_name(text):
@@ -65,3 +65,4 @@ if uploaded_file:
     st.markdown(f"💼 **Experience:**\n{experience}")
     st.markdown(f"🎓 **Education:**\n{education}")
     st.success(f"🔮 **Predicted Job Role:** {prediction}")
+
