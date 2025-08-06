@@ -56,7 +56,10 @@ def extract_name(text):
 def extract_skills(text):
     skill_keywords = ['python', 'sql', 'excel', 'tableau', 'powerbi', 'oracle', 'pl/sql',
                       'java', 'react', 'html', 'css', 'javascript', 'c++', 'pandas', 'numpy',
-                      'scikit-learn', 'tensorflow', 'keras']
+                      'scikit-learn', 'tensorflow', 'keras','microsoft sql server','my sql','ms_excel',
+                     'recruitment', 'talent acquisition', 'human resources', 'onboarding', 'payroll',
+                     'data analysis','react', 'redux', 'jsx', 'javascript']
+
     found_skills = []
     for skill in skill_keywords:
         if re.search(r'\b' + re.escape(skill) + r'\b', text.lower()):
@@ -119,4 +122,5 @@ if uploaded_file:
         st.markdown(f"- {line.strip()}")
 
     st.success(f"🧑‍💼 **Predicted Job Role:** {job_role}")
+
 
