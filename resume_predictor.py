@@ -26,23 +26,24 @@ def clean_text(text):
     text = re.sub(r'\d+', '', text)
     return text
 
-import re
+
 
 def extract_name(text):
-    # Split into lines and consider the first 15
     lines = text.strip().split('\n')
-    candidate_lines = lines[:15]
+    lines = [line.strip() for line in lines if line.strip()][:30]  # first 30 non-empty lines
 
-    for line in candidate_lines:
-        line = line.strip()
+    ignore_keywords = ['career objective', 'objective', 'summary', 'skills', 'education', 'experience']
 
-        # Skip empty lines or known non-name headings
-        if not line or line.lower() in ["career objective", "objective", "summary", "skills"]:
+    for line in lines:
+        low = line.lower()
+        if any(keyword in low for keyword in ignore_keywords):
             continue
-
-        # Match 1–3 words that look like a name (e.g., "John Doe", "Amit K. Singh")
-        if re.match(r'^([A-Z][a-z]*\.?\s?){1,3}$', line) and not re.search(r'\d', line):
-            return line
+        # Skip if line contains digits or too many special chars
+        if any(char.isdigit() for char in line):
+            continue
+        # Match lines with 1–4 capitalized words or initials
+        if re.match(r'^([A-Z][a-zA-Z]*(\s|\.)?){1,4}$', line):
+            return line.strip()
 
     return "Name not found"
 
@@ -141,6 +142,7 @@ if uploaded_file:
 
 
  
+
 
 
 
