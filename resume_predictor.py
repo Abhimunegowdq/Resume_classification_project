@@ -1,6 +1,8 @@
 import streamlit as st
 import re
 import pickle
+import joblib
+
 from sklearn.feature_extraction.text import TfidfVectorizer
 
 # Load models
@@ -65,4 +67,5 @@ if uploaded_file:
     st.markdown(f"💼 **Experience:**\n{experience}")
     st.markdown(f"🎓 **Education:**\n{education}")
     st.success(f"🔮 **Predicted Job Role:** {prediction}")
+
 
