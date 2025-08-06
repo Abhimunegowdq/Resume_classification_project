@@ -1,71 +1,111 @@
 import streamlit as st
+import docx2txt
+import PyPDF2
 import re
-import pickle
+import os
 import joblib
-
+import pandas as pd
 from sklearn.feature_extraction.text import TfidfVectorizer
 
-# Load models
+# Load model and vectorizer
 model = joblib.load("decision_tree_resume_model.pkl")
 vectorizer = joblib.load("tfidf_vectorizer.pkl")
 label_encoder = joblib.load("label_encoder.pkl")
 
-# Text extraction functions
+# Set Streamlit app title
+st.title("📄 Resume Job Role Predictor")
+st.markdown("---")
+
+# Helper functions
+def extract_text_from_pdf(pdf_file):
+    pdf_reader = PyPDF2.PdfReader(pdf_file)
+    text = ""
+    for page in pdf_reader.pages:
+        text += page.extract_text()
+    return text
+
+def extract_text_from_docx(docx_file):
+    return docx2txt.process(docx_file)
+
+def extract_email(text):
+    match = re.search(r'\S+@\S+', text)
+    return match.group(0) if match else "Not found"
+
 def extract_name(text):
     lines = text.strip().split("\n")
     for line in lines:
-        clean_line = line.strip()
-        if clean_line and len(clean_line.split()) <= 5:
-            if not re.search(r"\b(resume|curriculum|cv|profile|summary)\b", clean_line, re.IGNORECASE):
-                if not re.search(r"skills|experience|education|email", clean_line, re.IGNORECASE):
-                    return clean_line
+        if len(line.strip().split()) >= 2 and not any(char in line for char in "@|:•"):
+            return line.strip().title()
     return "Not found"
 
-def extract_email(text):
-    match = re.search(r"[a-zA-Z0-9_.+-]+@[a-zA-Z0-9-]+\.[a-zA-Z0-9-.]+", text)
-    return match.group(0) if match else "Not found"
-
 def extract_skills(text):
-    lines = [line.strip() for line in text.split("\n") if line.strip()]
-    skill_lines = [line for line in lines if re.search(r"\bskills\b", line, re.IGNORECASE)]
-    return "\n".join(skill_lines[:2]) if skill_lines else "Not found"
+    keywords = [
+        'python', 'java', 'sql', 'excel', 'ms excel', 'tableau', 'power bi',
+        'machine learning', 'nlp', 'flask', 'django', 'react', 'angular', 'ssis',
+        'keras', 'pytorch', 'html', 'css', 'javascript', 'spark', 'aws', 'azure'
+    ]
+    found = []
+    for word in keywords:
+        if re.search(r'\b' + re.escape(word) + r'\b', text.lower()):
+            found.append(word.title())
+    return ", ".join(sorted(set(found)))[:150] + "..." if found else "Not found"
 
 def extract_experience(text):
-    lines = [line.strip() for line in text.split("\n") if line.strip()]
-    experience_lines = [line for line in lines if re.search(r"\bexperience\b", line, re.IGNORECASE)]
-    return "\n".join(experience_lines[:3]) if experience_lines else "Not found"
+    exp_lines = []
+    patterns = [
+        r'\d+[\s\-]?years?', r'\d+\s?months?', r'experience', r'worked at', r'joined'
+    ]
+    for line in text.split("\n"):
+        if any(re.search(pat, line.lower()) for pat in patterns):
+            exp_lines.append(line.strip())
+        if len(exp_lines) >= 3:
+            break
+    return "\n".join(exp_lines) if exp_lines else "Not found"
 
 def extract_education(text):
-    edu_lines = [line.strip() for line in text.split("\n") if re.search(r"\b(btech|b\.tech|mtech|m\.tech|master|bachelor|mba|b\.e|m\.e|education)\b", line, re.IGNORECASE)]
-    return "\n".join(edu_lines[:2]) if edu_lines else "Not found"
+    edu_keywords = ['bachelor', 'master', 'degree', 'b.tech', 'm.tech', 'mba', 'b.sc', 'm.sc', 'graduation']
+    edu_lines = []
+    for line in text.split("\n"):
+        if any(word in line.lower() for word in edu_keywords):
+            edu_lines.append(line.strip())
+    return "\n".join(edu_lines) if edu_lines else "Not found"
 
-def predict_role(text):
-    transformed = vectorizer.transform([text])
-    pred = model.predict(transformed)
-    return label_encoder.inverse_transform(pred)[0]
-
-# Streamlit UI
-st.set_page_config(page_title="Resume Predictor", layout="centered")
-
-st.title("📄 Resume Role Classifier")
-
-uploaded_file = st.file_uploader("Upload your resume (.txt)", type=["txt"])
+# File uploader
+uploaded_file = st.file_uploader("Upload Resume (PDF or DOCX)", type=["pdf", "docx"])
 
 if uploaded_file:
-    resume_text = uploaded_file.read().decode("utf-8")
+    if uploaded_file.name.endswith(".pdf"):
+        resume_text = extract_text_from_pdf(uploaded_file)
+    elif uploaded_file.name.endswith(".docx"):
+        resume_text = extract_text_from_docx(uploaded_file)
+    else:
+        st.error("Unsupported file format.")
+        st.stop()
 
+    # Extract info
     name = extract_name(resume_text)
     email = extract_email(resume_text)
     skills = extract_skills(resume_text)
     experience = extract_experience(resume_text)
     education = extract_education(resume_text)
-    prediction = predict_role(resume_text)
 
-    st.markdown(f"👤 **Name:** {name}")
-    st.markdown(f"📧 **Email:** {email}")
-    st.markdown(f"🛠 **Skills:**\n{skills}")
-    st.markdown(f"💼 **Experience:**\n{experience}")
-    st.markdown(f"🎓 **Education:**\n{education}")
-    st.success(f"🔮 **Predicted Job Role:** {prediction}")
+    # Prediction
+    resume_cleaned = re.sub(r'\W+', ' ', resume_text.lower())
+    vector_input = vectorizer.transform([resume_cleaned])
+    prediction = model.predict(vector_input)[0]
+    predicted_role = label_mapping.get(prediction, "Unknown")
+
+    # Display result
+    st.markdown("---")
+    st.subheader("🔍 Extracted Resume Details")
+    st.markdown(f"**👤 Name:** {name}")
+    st.markdown(f"**📧 Email:** {email}")
+    st.markdown(f"**🛠 Skills:**\n\n{skills}")
+    st.markdown(f"**💼 Experience:**\n\n{experience}")
+    st.markdown(f"**🎓 Education:**\n\n{education}")
+    st.markdown(f"**🧠 Predicted Job Role:** `{predicted_role}`")
 
 
+model = joblib.load("decision_tree_resume_model.pkl")
+vectorizer = joblib.load("tfidf_vectorizer.pkl")
+label_encoder = joblib.load("label_encoder.pkl")
