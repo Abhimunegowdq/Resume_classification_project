@@ -26,9 +26,25 @@ def clean_text(text):
     text = re.sub(r'\d+', '', text)
     return text
 
+import re
+
 def extract_name(text):
-    match = re.search(r'\b[A-Z][a-z]+\s[A-Z][a-z]+\b', text)
-    return match.group() if match else "Not found"
+    # Split into lines and consider the first 15
+    lines = text.strip().split('\n')
+    candidate_lines = lines[:15]
+
+    for line in candidate_lines:
+        line = line.strip()
+
+        # Skip empty lines or known non-name headings
+        if not line or line.lower() in ["career objective", "objective", "summary", "skills"]:
+            continue
+
+        # Match 1–3 words that look like a name (e.g., "John Doe", "Amit K. Singh")
+        if re.match(r'^([A-Z][a-z]*\.?\s?){1,3}$', line) and not re.search(r'\d', line):
+            return line
+
+    return "Name not found"
 
 def extract_email(text):
     match = re.search(r'\b[\w.-]+@[\w.-]+\.\w+\b', text)
@@ -125,6 +141,7 @@ if uploaded_file:
 
 
  
+
 
 
 
