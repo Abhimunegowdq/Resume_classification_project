@@ -142,12 +142,34 @@ if uploaded_file:
     st.success(f" **Predicted Job Role:** {job_role}")
 
 
+
+# 👇 Add this block here
+resume_output = f"""
+👤 Name: {name}
+
+
+🛠 Skills:
+{', '.join(skills) if skills else 'Not found'}
+
+💼 Experience:
+{chr(10).join([f'- {line.strip()}' for line in experience])}
+
+🎓 Education:
+{chr(10).join([f'- {line.strip()}' for line in education])}
+
+🧑‍💼 Predicted Job Role: {job_role}
+"""
+
 st.download_button(
     label="📥 Download Resume Analysis",
     data=resume_output,
     file_name="resume_analysis.txt",
     mime="text/plain"
 )
+
+
+
+
 
 
 
