@@ -1,73 +1,80 @@
 import streamlit as st
+import re
 import fitz  # PyMuPDF
 import docx2txt
-import re
+import joblib
 
-# ----------- Text Extraction ----------
-def extract_text_from_pdf(file):
-    doc = fitz.open(stream=file.read(), filetype="pdf")
-    text = ""
-    for page in doc:
-        text += page.get_text()
+# Load ML model and vectorizer
+model = joblib.load("job_role_model.pkl")
+vectorizer = joblib.load("tfidf_vectorizer.pkl")
+label_encoder = joblib.load("label_encoder.pkl")
+
+# Text extraction
+def extract_text(file):
+    if file.name.endswith(".pdf"):
+        doc = fitz.open(stream=file.read(), filetype="pdf")
+        return "\n".join(page.get_text() for page in doc)
+    elif file.name.endswith(".docx"):
+        return docx2txt.process(file)
+    return ""
+
+# Clean for ML
+def clean_text(text):
+    text = text.lower()
+    text = re.sub(r"http\S+|www\S+", "", text)
+    text = re.sub(r"\S+@\S+", "", text)
+    text = re.sub(r"[^a-z\s]", "", text)
     return text
 
-def extract_text_from_docx(file):
-    return docx2txt.process(file)
-
-# ----------- Info Extraction ----------
+# Extract fields
 def extract_name(text):
-    lines = text.strip().split('\n')
+    lines = text.split("\n")
     for line in lines:
-        line = line.strip()
-        if line and len(line.split()) <= 5 and "curriculum" not in line.lower():
-            return line
+        if line.strip() and len(line.strip().split()) <= 5 and "curriculum" not in line.lower():
+            return line.strip()
     return "Not found"
 
 def extract_email(text):
-    match = re.search(r'\S+@\S+', text)
+    match = re.search(r"\S+@\S+", text)
     return match.group() if match else "Not found"
 
 def extract_skills(text):
-    # Extracts skills section lines
-    skill_lines = []
-    for line in text.split('\n'):
-        if re.search(r'\bskills\b|\btechnolog(?:y|ies)\b|\btools\b|\bexpertise\b', line, re.IGNORECASE):
-            skill_lines.append(line.strip())
-    if skill_lines:
-        # Take first 1-2 lines of skill content
-        return ' '.join(skill_lines[:2])
-    return "Not found"
+    skills = []
+    for line in text.split("\n"):
+        if re.search(r"skills|technologies|tools", line, re.IGNORECASE):
+            skills.append(line.strip())
+    return " ".join(skills[:2]) if skills else "Not found"
 
 def extract_experience(text):
-    exp_lines = []
-    for line in text.split('\n'):
-        if re.search(r'\bexperience\b|\bworked\b|\bproject\b|\bduration\b|\byears? of\b', line, re.IGNORECASE):
-            exp_lines.append(line.strip())
-    if exp_lines:
-        return '\n'.join(exp_lines[:5])
-    return "Not found"
+    exp = []
+    for line in text.split("\n"):
+        if re.search(r"experience|worked|duration|years|months", line, re.IGNORECASE):
+            exp.append(line.strip())
+    return "\n".join(exp[:5]) if exp else "Not found"
 
-# ----------- Streamlit UI ----------
-st.set_page_config(page_title="Resume Reader", layout="centered")
-st.title("📄 Resume Information Extractor")
+def extract_education(text):
+    edu = []
+    for line in text.split("\n"):
+        if re.search(r"education|bachelor|master|degree|university|college", line, re.IGNORECASE):
+            edu.append(line.strip())
+    return "\n".join(edu[:3]) if edu else "Not found"
 
-uploaded_file = st.file_uploader("Upload a Resume (PDF or DOCX)", type=["pdf", "docx"])
+# Streamlit UI
+st.set_page_config(page_title="Resume Job Role Predictor", layout="centered")
+st.title("📄 Resume Job Role Prediction App")
 
-if uploaded_file:
-    # Extract text
-    if uploaded_file.name.endswith('.pdf'):
-        resume_text = extract_text_from_pdf(uploaded_file)
-    else:
-        resume_text = extract_text_from_docx(uploaded_file)
+uploaded = st.file_uploader("Upload your resume (PDF/DOCX)", type=["pdf", "docx"])
 
-    # Extract info
-    name = extract_name(resume_text)
-    email = extract_email(resume_text)
-    skills = extract_skills(resume_text)
-    experience = extract_experience(resume_text)
+if uploaded:
+    raw_text = extract_text(uploaded)
+    cleaned = clean_text(raw_text)
+    tfidf = vectorizer.transform([cleaned])
+    prediction = model.predict(tfidf)[0]
+    job_role = label_encoder.inverse_transform([prediction])[0]
 
-    # Display output
-    st.markdown(f"👤 **Name:** {name}")
-    st.markdown(f"📧 **Email:** {email}")
-    st.markdown(f"🛠 **Skills (Top 2 lines):**\n\n{skills}")
-    st.markdown(f"💼 **Experience (Top 5 lines):**\n\n{experience}")
+    st.markdown(f"👤 **Name:** {extract_name(raw_text)}")
+    st.markdown(f"📧 **Email:** {extract_email(raw_text)}")
+    st.markdown(f"🛠 **Skills:** {extract_skills(raw_text)}")
+    st.markdown(f"💼 **Experience:**\n\n{extract_experience(raw_text)}")
+    st.markdown(f"🎓 **Education:**\n\n{extract_education(raw_text)}")
+    st.success(f"🔮 **Predicted Job Role:** {job_role}")
