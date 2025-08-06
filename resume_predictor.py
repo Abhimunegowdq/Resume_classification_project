@@ -28,24 +28,30 @@ def clean_text(text):
 
 
 
+import re
+
 def extract_name(text):
     lines = text.strip().split('\n')
-    lines = [line.strip() for line in lines if line.strip()][:30]  # first 30 non-empty lines
 
-    ignore_keywords = ['career objective', 'objective', 'summary', 'skills', 'education', 'experience']
+    # Common headings to skip
+    skip_keywords = ['objective', 'summary', 'career', 'resume', 'programming', 'skills', 'experience', 'education', 'languages']
 
-    for line in lines:
-        low = line.lower()
-        if any(keyword in low for keyword in ignore_keywords):
+    # Check first 10 lines only (to avoid noise)
+    for line in lines[:10]:
+        line = line.strip()
+        if not line:
             continue
-        # Skip if line contains digits or too many special chars
-        if any(char.isdigit() for char in line):
+
+        # Skip lines with common non-name headings
+        if any(keyword in line.lower() for keyword in skip_keywords):
             continue
-        # Match lines with 1–4 capitalized words or initials
-        if re.match(r'^([A-Z][a-zA-Z]*(\s|\.)?){1,4}$', line):
+
+        # Check for likely name pattern: starts with letters, contains alphabetic words, not too long
+        if re.match(r'^[A-Za-z][A-Za-z.\s]{2,50}$', line):
             return line.strip()
 
     return "Name not found"
+
 
 def extract_email(text):
     match = re.search(r'\b[\w.-]+@[\w.-]+\.\w+\b', text)
@@ -142,6 +148,7 @@ if uploaded_file:
 
 
  
+
 
 
 
