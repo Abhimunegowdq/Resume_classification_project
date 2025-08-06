@@ -3,7 +3,6 @@ import docx2txt
 import fitz  # PyMuPDF
 import re
 import joblib
-import pandas as pd
 import numpy as np
 
 # ---------------- Load Saved Model and Tools ----------------
@@ -17,80 +16,78 @@ def extract_text_from_docx(file):
     return docx2txt.process(file)
 
 def extract_text_from_pdf(file):
-    text = ""
-    pdf = fitz.open(stream=file.read(), filetype="pdf")
-    for page in pdf:
-        text += page.get_text()
+    with fitz.open(stream=file.read(), filetype="pdf") as doc:
+        text = ""
+        for page in doc:
+            text += page.get_text()
     return text
 
-def extract_name(text):
-    match = re.findall(r"(?i)(name[:\- ]*)([A-Z][a-z]+(?: [A-Z][a-z]+)*)", text)
-    return match[0][1] if match else "Not found"
-
 def extract_email(text):
-    match = re.findall(r"[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}", text)
-    return match[0] if match else "Not found"
+    match = re.search(r"[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}", text)
+    return match.group(0) if match else "Not found"
 
 def extract_phone(text):
-    match = re.findall(r'(\+?\d{1,3})?[-.\s]?\(?\d{2,4}\)?[-.\s]?\d{3,5}[-.\s]?\d{4}', text)
-    return match[0][0] if match else "Not found"
+    match = re.search(r'(\+91[\-\s]?)?[0]?[6789]\d{9}', text)
+    return match.group(0) if match else "Not found"
+
+def extract_name(text):
+    lines = text.strip().split('\n')
+    for line in lines:
+        clean_line = line.strip()
+        if len(clean_line.split()) <= 4 and clean_line.replace(" ", "").isalpha():
+            return clean_line.title()
+        if re.match(r"^[A-Z][a-z]+ [A-Z][a-z]+", clean_line):
+            return clean_line.strip()
+    return "Not found"
 
 def extract_skills(text):
-    skills_list = [
-        'python', 'java', 'sql', 'excel', 'tableau', 'power bi', 'pandas', 'numpy',
-        'matplotlib', 'seaborn', 'scikit-learn', 'tensorflow', 'keras', 'nlp', 
-        'machine learning', 'deep learning', 'html', 'css', 'javascript', 'react',
-        'git', 'github', 'communication', 'leadership', 'teamwork'
+    keywords = [
+        "python", "java", "c++", "sql", "excel", "power bi", "tableau", 
+        "communication", "leadership", "teamwork", "machine learning",
+        "deep learning", "nlp", "keras", "pytorch", "tensorflow", 
+        "pandas", "numpy", "data analysis", "react", "angular", 
+        "flask", "django"
     ]
-    text = text.lower()
-    found = [skill for skill in skills_list if skill in text]
-    return sorted(set(found))
+    skills = [word for word in keywords if word.lower() in text.lower()]
+    return list(set(skills)) if skills else ["Not found"]
 
-# -------------------- Streamlit App -------------------------
+def predict_job_role(text):
+    vectorized_text = vectorizer.transform([text])
+    prediction_encoded = model.predict(vectorized_text)[0]
+    prediction = label_encoder.inverse_transform([prediction_encoded])[0]
+    return prediction
 
-st.set_page_config(page_title="Resume Job Role Predictor", layout="wide")
-st.title("📄 Resume Job Role Predictor (PDF & DOCX)")
+# ------------------ Streamlit Interface ---------------------
 
-uploaded_file = st.file_uploader("Upload your resume (PDF or DOCX)", type=["pdf", "docx"])
+st.title("📄 Resume Job Role Predictor")
 
-if uploaded_file:
-    if uploaded_file.name.endswith(".pdf"):
-        text = extract_text_from_pdf(uploaded_file)
-    elif uploaded_file.name.endswith(".docx"):
-        text = extract_text_from_docx(uploaded_file)
+uploaded_file = st.file_uploader("Upload a resume file (.pdf or .docx)", type=["pdf", "docx"])
+
+if uploaded_file is not None:
+    file_type = uploaded_file.name.split('.')[-1].lower()
+
+    if file_type == "pdf":
+        resume_text = extract_text_from_pdf(uploaded_file)
+    elif file_type == "docx":
+        resume_text = extract_text_from_docx(uploaded_file)
     else:
         st.error("Unsupported file format.")
         st.stop()
 
-    st.subheader("🔍 Extracted Information")
+    # Display resume preview
+    with st.expander(" Resume Preview"):
+        st.write(resume_text)
 
-    name = extract_name(text)
-    email = extract_email(text)
-    phone = extract_phone(text)
-    skills = extract_skills(text)
+    # Extracted Information
+    st.subheader(" Extracted Information")
+    st.write(" **Name:**", extract_name(resume_text))
+    st.write(" **Email:**", extract_email(resume_text))
+    st.write(" **Phone:**", extract_phone(resume_text))
+    st.write("🛠 **Skills:**", ", ".join(extract_skills(resume_text)))
 
-    st.write(f"**👤 Name:** {name}")
-    st.write(f"**📧 Email:** {email}")
-    st.write(f"**📱 Phone:** {phone}")
-    st.write(f"**🛠️ Skills:** {', '.join(skills) if skills else 'No skills found'}")
+    # Prediction
+    st.subheader(" Predicted Job Role")
+    predicted_role = predict_job_role(resume_text)
+    st.success(f" The predicted job role is: **{predicted_role}**")
 
-    # Predict job role
-    vector_input = vectorizer.transform([text])
-    prediction = model.predict(vector_input)
-    prediction_proba = model.predict_proba(vector_input)
-
-    job_role = label_encoder.inverse_transform(prediction)[0]
-    confidence = np.max(prediction_proba) * 100
-
-    st.subheader("🎯 Predicted Job Role")
-    st.success(f"{job_role} (Confidence: {confidence:.2f}%)")
-
-    # Optional: Show full probability scores
-    proba_df = pd.DataFrame(prediction_proba, columns=label_encoder.classes_)
-    with st.expander("🔬 View All Class Probabilities"):
-        st.dataframe(proba_df.T.rename(columns={0: "Probability"}))
-
-    st.subheader("📄 Resume Text")
-    with st.expander("Click to view full resume text"):
-        st.text_area("Resume Content", text, height=300)
 
