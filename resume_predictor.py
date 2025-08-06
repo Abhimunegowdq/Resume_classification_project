@@ -34,33 +34,43 @@ def extract_email(text):
     return match.group(0) if match else "Not found"
 
 def extract_name(text):
-    invalid_names = {'professional summary', 'curriculum vitae', 'resume', 'profile', 'about me'}
-
-    # Pattern: Name: John Doe
+    # Common invalid headers to skip
+    invalid_headers = {'professional summary', 'curriculum vitae', 'resume', 'profile', 'about me'}
+    
+    # Try: "Name: John Doe"
     name_match = re.search(r'(?:name\s*[:\-]\s*)([A-Z][a-z]+(?:\s[A-Z][a-z]+)+)', text, re.IGNORECASE)
     if name_match:
         name = name_match.group(1).strip()
-        if name.lower() not in invalid_names:
+        if name.lower() not in invalid_headers:
             return name
 
-    # Fallback: scan first 10 lines
+    # Try: first 10 lines for proper name format
     lines = text.strip().split('\n')
     for line in lines[:10]:
         line_clean = line.strip()
         line_lower = line_clean.lower()
 
-        if line_lower in invalid_names or len(line_clean.split()) > 5:
+        if line_lower in invalid_headers or len(line_clean.split()) > 6:
             continue
 
-        # Title case names: John Doe / Jane Mary Smith
-        if re.match(r'^([A-Z][a-z]+\.?\s){1,3}[A-Z][a-z]+\.?$', line_clean):
+        # Match: John Doe, John A. Smith, etc.
+        if re.match(r'^([A-Z][a-z]+\s){1,3}[A-Z][a-z]+\.?$', line_clean):
             return line_clean
 
-        # Uppercase names: JOHN DOE -> John Doe
-        if re.match(r'^([A-Z]{2,}\s?)+$', line_clean):
+        # Match all-uppercase: JOHN DOE → John Doe
+        if re.match(r'^([A-Z]{2,}\s?){2,3}$', line_clean):
             return line_clean.title()
 
-    return "Not found"
+    # Fallback: return first capitalized line with 2–3 titlecase words
+    for line in lines[:10]:
+        words = line.strip().split()
+        capitalized = [w for w in words if w.istitle()]
+        if 2 <= len(capitalized) <= 4:
+            return " ".join(capitalized)
+
+    # Last resort: return first line
+    return lines[0].strip().title()
+
 
 
 
@@ -133,6 +143,7 @@ if uploaded_file:
         st.markdown(f"- {line.strip()}")
 
     st.success(f"🧑‍💼 **Predicted Job Role:** {job_role}")
+
 
 
 
