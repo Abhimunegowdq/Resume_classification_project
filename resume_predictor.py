@@ -5,8 +5,8 @@ import PyPDF2
 import joblib
 
 # --- Load your trained components ---
-model = joblib.load("decision_tree_model.pkl")
-vectorizer = joblib.load("vectorizer.pkl")
+model = joblib.load("decision_tree_resume_model.pkl")
+vectorizer = joblib.load("tfidf_vectorizer.pkl")
 label_encoder = joblib.load("label_encoder.pkl")
 
 # --- Helper functions ---
@@ -125,6 +125,7 @@ if uploaded_file:
 
 
  
+
 
 
 
