@@ -34,7 +34,7 @@ def extract_name(text):
     lines = text.strip().split('\n')
 
     # Common headings to skip
-    skip_keywords = ['objective', 'summary', 'career', 'resume', 'programming', 'skills', 'experience', 'education', 'languages']
+    skip_keywords = ['objective', 'summary', 'career', 'resume', 'programming', 'skills', 'experience', 'education', 'languages','PeopleSoft Database Administrator']
 
     # Check first 10 lines only (to avoid noise)
     for line in lines[:10]:
@@ -148,6 +148,7 @@ if uploaded_file:
 
 
  
+
 
 
 
