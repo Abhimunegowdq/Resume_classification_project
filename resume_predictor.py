@@ -5,7 +5,7 @@ import docx2txt
 import joblib
 
 # Load ML model and vectorizer
-model = joblib.load("job_role_model.pkl")
+model = joblib.load("decision_tree_resume_model.pkl")
 vectorizer = joblib.load("tfidf_vectorizer.pkl")
 label_encoder = joblib.load("label_encoder.pkl")
 
@@ -78,3 +78,4 @@ if uploaded:
     st.markdown(f"💼 **Experience:**\n\n{extract_experience(raw_text)}")
     st.markdown(f"🎓 **Education:**\n\n{extract_education(raw_text)}")
     st.success(f"🔮 **Predicted Job Role:** {job_role}")
+
