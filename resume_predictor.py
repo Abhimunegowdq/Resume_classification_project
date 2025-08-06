@@ -5,6 +5,14 @@ import re
 import pickle
 import spacy
 
+import spacy
+try:
+    nlp = spacy.load("en_core_web_sm")
+except OSError:
+    import subprocess
+    subprocess.run(["python", "-m", "spacy", "download", "en_core_web_sm"], check=True)
+    nlp = spacy.load("en_core_web_sm")
+
 # Load spaCy model
 nlp = spacy.load("en_core_web_sm")
 
@@ -128,6 +136,7 @@ if uploaded_file:
         file_name="resume_analysis.txt",
         mime="text/plain"
     )
+
 
 
 
