@@ -6,10 +6,12 @@ import joblib
 import pandas as pd
 import numpy as np
 import spacy
+import en_core_web_sm
+nlp = en_core_web_sm.load()
 from collections import Counter
 
 # Load spaCy English model
-nlp = spacy.load("en_core_web_sm")
+
 
 # ---------------- Load Saved Model and Tools ----------------
 model = joblib.load("decision_tree_resume_model.pkl")
@@ -125,4 +127,5 @@ if uploaded_file is not None:
     st.write(f"**💼 Experience:**\n{experience}")
     st.write(f"**🛠️ Skills (Extracted):** {skills}")
     st.success(f"🎯 **Predicted Job Role:** {predicted_role}")
+
 
