@@ -31,9 +31,14 @@ def clean_text(text):
 def extract_name(text):
     lines = text.strip().split("\n")
     for line in lines:
-        if line.strip() and len(line.split()) <= 5 and "curriculum" not in line.lower():
-            return line.strip()
+        clean_line = line.strip()
+        # Ignore common headings
+        if clean_line and len(clean_line.split()) <= 5:
+            if not re.search(r"\b(resume|curriculum|cv|profile|bio|summary)\b", clean_line, re.IGNORECASE):
+                if not re.search(r"skills|experience|education|email", clean_line, re.IGNORECASE):
+                    return clean_line
     return "Not found"
+
 
 # Extract Email
 def extract_email(text):
@@ -88,6 +93,7 @@ if uploaded:
     st.success(f"🔮 **Predicted Job Role:** {predicted_role}")
 
    
+
 
 
 
