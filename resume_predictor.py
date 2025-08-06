@@ -73,42 +73,18 @@ def extract_name(text):
     
 
 def extract_skills(text):
-    # Normalize text
-    text = text.lower()
-    lines = [line.strip() for line in text.split('\n') if line.strip()]
-    
-    # 1️⃣ Try to extract from skills section
-    skills_section = []
-    capture = False
-    for line in lines:
-        if any(header in line for header in ['skills', 'technical skills', 'key skills']):
-            capture = True
-            continue
-        if capture:
-            if any(stop in line for stop in ['experience', 'education', 'project', 'summary']):
-                break
-            skills_section.append(line)
-    
-    if skills_section:
-        # Join all captured lines, split by comma or whitespace
-        joined_skills = ' '.join(skills_section)
-        found = re.findall(r'\b[a-zA-Z\-\+#\.]{2,}\b', joined_skills)
-        return list(set([s.strip() for s in found if len(s.strip()) > 1]))
-
-    # 2️⃣ Fallback to predefined list
     skill_keywords = [
         'python', 'java', 'c++', 'sql', 'javascript', 'html', 'css', 'react', 'node.js',
         'angular', 'c#', 'php', 'mysql', 'mongodb', 'oracle', 'pl/sql',
         'pandas', 'numpy', 'scikit-learn', 'tensorflow', 'keras', 'power bi', 'tableau',
         'aws', 'azure', 'git', 'docker', 'jira', 'crm', 'erp', 'peoplesoft', 'excel'
     ]
+    text = text.lower()
     found_skills = []
     for skill in skill_keywords:
         if re.search(r'\b' + re.escape(skill) + r'\b', text):
             found_skills.append(skill)
     return list(set(found_skills)) if found_skills else ["Not found"]
-
-
 
 
 
@@ -172,6 +148,7 @@ if uploaded_file:
         st.markdown(f"- {line.strip()}")
 
     st.success(f" **Predicted Job Role:** {job_role}")
+
 
 
 
