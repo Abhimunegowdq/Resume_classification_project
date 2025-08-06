@@ -1,13 +1,13 @@
 streamlit
-docx2txt
-PyMuPDF
-joblib
 scikit-learn
+spacy
+python-docx
+PyPDF2
 pandas
 numpy
-PyPDF2
-
-
+joblib
+pandas
+numpy
 
 
 
