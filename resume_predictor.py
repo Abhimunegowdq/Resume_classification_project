@@ -142,6 +142,15 @@ if uploaded_file:
     st.success(f" **Predicted Job Role:** {job_role}")
 
 
+st.download_button(
+    label="📥 Download Resume Analysis",
+    data=resume_output,
+    file_name="resume_analysis.txt",
+    mime="text/plain"
+)
+
+
+
 
 
 
