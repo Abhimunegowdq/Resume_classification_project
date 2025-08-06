@@ -84,13 +84,7 @@ def extract_skills(text):
     for skill in skill_keywords:
         if re.search(r'\b' + re.escape(skill) + r'\b', text):
             found_skills.append(skill)
-    return list(set(found_skills)) if found_skills else ["Not found"]
-
-
-
-
-
-               
+    return list(set(found_skills)) if found_skills else ["Not found"]        
    
 def extract_experience(text):
     lines = text.split('\n')
@@ -130,8 +124,6 @@ if uploaded_file:
 
     # ----------------- Display Output ---------------- #
     st.markdown(f" **Name:** {name}")
-    
-
     st.markdown(" **Skills:**")
     if skills:
         st.markdown(f"- {', '.join(skills[:4])}")
@@ -148,6 +140,7 @@ if uploaded_file:
         st.markdown(f"- {line.strip()}")
 
     st.success(f" **Predicted Job Role:** {job_role}")
+
 
 
 
