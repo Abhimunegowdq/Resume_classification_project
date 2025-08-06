@@ -27,27 +27,28 @@ def extract_email(text):
     match = re.search(r'\S+@\S+', text)
     return match.group() if match else "Not found"
 
-def extract_education(text):
-    edu_keywords = ['bachelor', 'master', 'b.tech', 'm.tech', 'b.sc', 'm.sc', 'bca', 'mca', 'bcom', 'mcom']
-    lines = text.lower().split('\n')
-    matches = [line.strip() for line in lines if any(kw in line for kw in edu_keywords)]
-    return "\n".join(matches).title() if matches else "Not found"
+def extract_skills(text):
+    # Extracts skills section lines
+    skill_lines = []
+    for line in text.split('\n'):
+        if re.search(r'\bskills\b|\btechnolog(?:y|ies)\b|\btools\b|\bexpertise\b', line, re.IGNORECASE):
+            skill_lines.append(line.strip())
+    if skill_lines:
+        # Take first 1-2 lines of skill content
+        return ' '.join(skill_lines[:2])
+    return "Not found"
 
 def extract_experience(text):
-    experience_lines = []
+    exp_lines = []
     for line in text.split('\n'):
         if re.search(r'\bexperience\b|\bworked\b|\bproject\b|\bduration\b|\byears? of\b', line, re.IGNORECASE):
-            experience_lines.append(line.strip())
-    return "\n".join(experience_lines).strip() if experience_lines else "Not found"
-
-def extract_skills(text):
-    skills_lines = []
-    for line in text.split('\n'):
-        if re.search(r'\bskills\b|\btechnologies\b|\btools\b|\bproficient\b|\bexpertise\b', line, re.IGNORECASE):
-            skills_lines.append(line.strip())
-    return "\n".join(skills_lines).strip() if skills_lines else "Not found"
+            exp_lines.append(line.strip())
+    if exp_lines:
+        return '\n'.join(exp_lines[:5])
+    return "Not found"
 
 # ----------- Streamlit UI ----------
+st.set_page_config(page_title="Resume Reader", layout="centered")
 st.title("📄 Resume Information Extractor")
 
 uploaded_file = st.file_uploader("Upload a Resume (PDF or DOCX)", type=["pdf", "docx"])
@@ -62,13 +63,11 @@ if uploaded_file:
     # Extract info
     name = extract_name(resume_text)
     email = extract_email(resume_text)
-    education = extract_education(resume_text)
-    experience = extract_experience(resume_text)
     skills = extract_skills(resume_text)
+    experience = extract_experience(resume_text)
 
-    # Display results
+    # Display output
     st.markdown(f"👤 **Name:** {name}")
     st.markdown(f"📧 **Email:** {email}")
-    st.markdown(f"🛠 **Skills:**\n\n{skills}")
-    st.markdown(f"🎓 **Education:**\n\n{education}")
-    st.markdown(f"💼 **Experience:**\n\n{experience}")
+    st.markdown(f"🛠 **Skills (Top 2 lines):**\n\n{skills}")
+    st.markdown(f"💼 **Experience (Top 5 lines):**\n\n{experience}")
