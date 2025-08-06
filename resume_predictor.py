@@ -79,14 +79,32 @@ def extract_skills(text):
                       'java', 'react', 'html', 'css', 'javascript', 'c++', 'pandas', 'numpy',
                       'scikit-learn', 'tensorflow', 'keras','microsoft sql server','my sql','ms_excel',
                      'recruitment', 'talent acquisition', 'human resources', 'onboarding', 'payroll',
-                     'data analysis','react', 'redux', 'jsx', 'javascript']
+                     'data analysis','react', 'redux', 'jsx', 'javascript'
+                     html', 'css', 'react', 'angular', 'node.js', 'express', 'flutter', 'django',
 
+        
+                    'sql', 'mysql', 'postgresql', 'mongodb', 'oracle', 'pl/sql',
+                    'pandas', 'numpy', 'scikit-learn', 'tensorflow', 'keras',
+                     'machine learning', 'deep learning', 'nlp',
+
+        
+                     'aws', 'azure', 'gcp', 'docker', 'kubernetes', 'jenkins', 'git',
+
+        
+                     'power bi', 'tableau', 'excel', 'matplotlib', 'seaborn', 'looker',
+
+        
+                       'sap', 'salesforce', 'jira', 'crm', 'erp', 'peoplesoft']
+                       
+text = text.lower()
     found_skills = []
-    for skill in skill_keywords:
-        if re.search(r'\b' + re.escape(skill) + r'\b', text.lower()):
-            found_skills.append(skill)
-    return list(dict.fromkeys(found_skills))[:8]  # remove duplicates, max 8
 
+    for skill in skill_keywords:
+        pattern = r'\b' + re.escape(skill.lower()) + r'\b'
+        if re.search(pattern, text):
+            found_skills.append(skill)
+
+    return list(set(found_skills)) if found_skills else ["Not found"]
 def extract_experience(text):
     lines = text.split('\n')
     exp_lines = [line for line in lines if 'experience' in line.lower()]
@@ -143,6 +161,7 @@ if uploaded_file:
         st.markdown(f"- {line.strip()}")
 
     st.success(f"🧑‍💼 **Predicted Job Role:** {job_role}")
+
 
 
 
