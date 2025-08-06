@@ -136,25 +136,26 @@ if uploaded_file:
     job_role = label_encoder.inverse_transform([pred_label])[0]
 
     # ----------------- Display Output ---------------- #
-    st.markdown(f"👤 **Name:** {name}")
-    st.markdown(f"📧 **Email:** {email}")
+    st.markdown(f" **Name:** {name}")
+    st.markdown(f" **Email:** {email}")
 
-    st.markdown("🛠 **Skills:**")
+    st.markdown(" **Skills:**")
     if skills:
         st.markdown(f"- {', '.join(skills[:4])}")
         st.markdown(f"- {', '.join(skills[4:8])}" if len(skills) > 4 else "")
     else:
         st.write("Not found")
 
-    st.markdown("💼 **Experience:**")
+    st.markdown(" **Experience:**")
     for line in experience:
         st.markdown(f"- {line.strip()}")
 
-    st.markdown("🎓 **Education:**")
+    st.markdown(" **Education:**")
     for line in education:
         st.markdown(f"- {line.strip()}")
 
-    st.success(f"🧑‍💼 **Predicted Job Role:** {job_role}")
+    st.success(f" **Predicted Job Role:** {job_role}")
+
 
 
 
