@@ -1,112 +1,121 @@
 import streamlit as st
+import re
 import docx2txt
 import PyPDF2
-import re
 import joblib
+from sklearn.feature_extraction.text import TfidfVectorizer
 
-# Load model components
+# Load model and encoders
 model = joblib.load("decision_tree_resume_model.pkl")
 vectorizer = joblib.load("tfidf_vectorizer.pkl")
 label_encoder = joblib.load("label_encoder.pkl")
 
-st.title("📄 Resume Job Role Predictor")
-st.write("Upload a resume (PDF or DOCX) to extract information and predict the job role.")
+# Text cleaning
+def clean_text(text):
+    text = re.sub(r'\n+', '\n', text)
+    text = re.sub(r'http\S+|www\S+|https\S+', '', text)
+    text = re.sub(r'\S+@\S+', '', text)
+    text = re.sub(r'[^a-zA-Z0-9\s.,]', '', text)
+    return text.strip().lower()
 
-# ---- RESUME TEXT EXTRACTOR ----
-def extract_text(file):
-    if file.name.endswith(".pdf"):
-        pdf_reader = PyPDF2.PdfReader(file)
+# Extract name
+def extract_name(text):
+    lines = text.split('\n')
+    for line in lines[:5]:
+        if len(line.split()) >= 2 and all(w[0].isupper() for w in line.split()[:2]):
+            return line.strip()
+    return "Not found"
+
+# Extract email
+def extract_email(text):
+    match = re.search(r'[\w\.-]+@[\w\.-]+', text)
+    return match.group(0) if match else "Not found"
+
+# Extract skills
+def extract_skills(text):
+    skills_keywords = [
+        "python", "java", "sql", "excel", "tableau", "power bi", "ml", "keras", "tensorflow",
+        "pandas", "numpy", "matplotlib", "scikit-learn", "flask", "django", "html", "css",
+        "javascript", "react", "node", "php", "c++", "c#", "linux", "git", "oracle", "pl/sql",
+        "spark", "hadoop", "crm"
+    ]
+    found = []
+    for word in skills_keywords:
+        if re.search(r'\b' + re.escape(word) + r'\b', text.lower()):
+            found.append(word)
+    return list(set(found))
+
+# Extract experience
+def extract_experience(text):
+    exp_matches = re.findall(r'[\d\+]+ *years? of experience[^.]{0,100}\.', text, re.IGNORECASE)
+    if not exp_matches:
+        exp_matches = re.findall(r"(worked|experience|developed|responsible)[^.]{0,100}\.", text, re.IGNORECASE)
+    return exp_matches[:3] if exp_matches else ["Not found"]
+
+# Extract education
+def extract_education(text):
+    keywords = ["bachelor", "master", "b.tech", "m.tech", "bsc", "msc", "bca", "mca", "mba", "phd"]
+    edu_lines = []
+    for line in text.split('\n'):
+        for word in keywords:
+            if word in line.lower() and line.strip() not in edu_lines:
+                edu_lines.append(line.strip())
+    return edu_lines[:3] if edu_lines else ["Not found"]
+
+# File reader
+def read_file(uploaded_file):
+    if uploaded_file.name.endswith('.pdf'):
+        reader = PyPDF2.PdfReader(uploaded_file)
         text = ""
-        for page in pdf_reader.pages:
-            text += page.extract_text() or ""
+        for page in reader.pages:
+            text += page.extract_text() + "\n"
         return text
-    elif file.name.endswith(".docx"):
-        return docx2txt.process(file)
+    elif uploaded_file.name.endswith('.docx'):
+        return docx2txt.process(uploaded_file)
     else:
         return ""
 
-# ---- CLEAN TEXT ----
-def clean_text(text):
-    return re.sub(r'\s+', ' ', text).strip()
+# Streamlit UI
+st.set_page_config(page_title="Resume Classifier", layout="centered")
+st.title("📄 Resume Classification App")
+st.markdown("Upload your resume (PDF or DOCX) to get extracted information and job role prediction.")
 
-# ---- NAME ----
-def extract_name(text):
-    match = re.search(r"Name\s*[:\-]?\s*([A-Z][a-z]+(?:\s[A-Z][a-z]+)+)", text, re.IGNORECASE)
-    if match:
-        return match.group(1)
-    return "Not found"
+uploaded_file = st.file_uploader("Choose your resume file", type=["pdf", "docx"])
 
-# ---- EMAIL ----
-def extract_email(text):
-    match = re.search(r"[\w\.-]+@[\w\.-]+\.\w+", text)
-    return match.group(0) if match else "Not found"
+if uploaded_file:
+    raw_text = read_file(uploaded_file)
+    cleaned = clean_text(raw_text)
 
-# ---- SKILLS ----
-def extract_skills(text):
-    skills_keywords = ["python", "java", "c++", "sql", "excel", "tableau", "power bi", "html", "css", "javascript", "crm", "oracle", "pl/sql", "ssis", "linux"]
-    skills_found = [skill for skill in skills_keywords if skill.lower() in text.lower()]
-    return skills_found[:6]  # Top 6 for brevity
-
-# ---- EXPERIENCE ----
-def extract_experience(text):
-    experience_lines = []
-    exp_matches = re.findall(r"(experience|exp\.?|worked|responsible|duration).{0,100}", text, re.IGNORECASE)
-    for line in exp_matches:
-        if len(experience_lines) >= 3:
-            break
-        experience_lines.append(line.strip())
-    return experience_lines
-
-# ---- EDUCATION ----
-def extract_education(text):
-    edu_matches = re.findall(r"(Bachelor|Master|B\.Tech|M\.Tech|BSc|MSc|BE|ME|BCA|MCA|BBA|MBA).{0,50}", text, re.IGNORECASE)
-    return edu_matches[:3]
-
-# ---- STREAMLIT UI ----
-uploaded_file = st.file_uploader("Upload your resume", type=["pdf", "docx"])
-
-if uploaded_file is not None:
-    text = extract_text(uploaded_file)
-    cleaned = clean_text(text)
-
-    # Extract info
-    name = extract_name(cleaned)
-    email = extract_email(cleaned)
+    name = extract_name(raw_text)
+    email = extract_email(raw_text)
     skills = extract_skills(cleaned)
-    experience = extract_experience(cleaned)
-    education = extract_education(cleaned)
+    experience = extract_experience(raw_text)
+    education = extract_education(raw_text)
 
-    # Predict job role
-    features = vectorizer.transform([cleaned])
-    predicted_category = model.predict(features)[0]
-    predicted_label = label_encoder.inverse_transform([predicted_category])[0]
+    # Prediction
+    vec_text = vectorizer.transform([cleaned])
+    prediction_encoded = model.predict(vec_text)[0]
+    prediction = label_encoder.inverse_transform([prediction_encoded])[0]
 
-    # Display Results
+    # Output
     st.markdown(f"👤 **Name:** {name}")
     st.markdown(f"📧 **Email:** {email}")
 
     st.markdown("🛠 **Skills:**")
     if skills:
-        skills_output = ", ".join(skills[:3]) + "\n" + ", ".join(skills[3:]) if len(skills) > 3 else ", ".join(skills)
-        st.text(skills_output)
+        mid = len(skills) // 2
+        st.text(", ".join(skills[:mid+1]))
+        if skills[mid+1:]:
+            st.text(", ".join(skills[mid+1:]))
     else:
         st.text("Not found")
 
     st.markdown("💼 **Experience:**")
-    if experience:
-        for line in experience:
-            st.text(f"• {line}")
-    else:
-        st.text("Not found")
+    for exp in experience:
+        st.markdown(f"- {exp}")
 
     st.markdown("🎓 **Education:**")
-    if education:
-        for degree in education:
-            st.text(f"• {degree}")
-    else:
-        st.text("Not found")
+    for edu in education:
+        st.markdown(f"- {edu}")
 
-    st.markdown(f"🧑‍💼 **Predicted Job Role:** {predicted_label}")
-
-
-
+    st.markdown(f"🧑‍💼 **Predicted Job Role:** {prediction}")
