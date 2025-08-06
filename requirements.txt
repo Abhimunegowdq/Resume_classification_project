@@ -1,8 +1,11 @@
 streamlit
+docx2txt
+PyMuPDF
+joblib
 scikit-learn
 pandas
 numpy
-joblib
-docx2txt
-PyMuPDF
+spacy
+
+
 
